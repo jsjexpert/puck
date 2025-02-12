@@ -16,7 +16,7 @@ import styles from "./styles.module.css";
 import { DropZoneProvider, ZoneStoreContext, dropZoneContext } from "./context";
 import { useAppContext } from "../Puck/context";
 import { DropZoneProps } from "./types";
-import { ComponentConfig, PuckContext } from "../../types";
+import { ComponentConfig, FieldProps, PuckContext } from "../../types";
 
 import { UseDroppableInput } from "@dnd-kit/react";
 import { DrawerItemInner } from "../Drawer";
@@ -263,9 +263,15 @@ const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
             dragRef: null,
           };
 
+
+          const originalItem = { props: { ...config.components[item.type]?.defaultProps, ...item.props, } };
+
+          // Transform props using shared external data before rendering if applicable
+          const transformedItem = beforeRenderProps(originalItem, appContext.externalData, config.components[item.type]?.beforeRender);
+
           const defaultedProps = {
-            ...config.components[item.type]?.defaultProps,
-            ...item.props,
+            ...originalItem.props,
+            ...transformedItem.props, // Add transformed props to defaultedProps right before rendering but don't save the transformation in the data
             puck: puckProps,
             editMode: true, // DEPRECATED
           };
@@ -276,10 +282,10 @@ const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
             config.components[item.type] && item.type !== "preview"
               ? config.components[item.type].render
               : () => (
-                  <div style={{ padding: 48, textAlign: "center" }}>
-                    No configuration for {item.type}
-                  </div>
-                );
+                <div style={{ padding: 48, textAlign: "center" }}>
+                  No configuration for {item.type}
+                </div>
+              );
 
           const componentConfig: ComponentConfig | undefined =
             config.components[item.type];
@@ -392,6 +398,9 @@ const DropZoneRender = forwardRef<HTMLDivElement, DropZoneProps>(
         {content.map((item) => {
           const Component = config.components[item.type];
 
+          // Transform props using shared external data before rendering if applicable
+          const transformedItem = beforeRenderProps({ props: item.props }, ctx?.externalData, config.components[item.type]?.beforeRender);
+          
           if (Component) {
             return (
               <DropZoneProvider
@@ -402,10 +411,12 @@ const DropZoneRender = forwardRef<HTMLDivElement, DropZoneProps>(
                   areaId: item.props.id,
                   depth: 1,
                   path: [],
+                  externalData: ctx?.externalData
                 }}
               >
                 <Component.render
-                  {...item.props}
+                  {...transformedItem.props}
+                  // {...item.props}
                   puck={{
                     renderDropZone: DropZoneRenderPure,
                   }}
@@ -442,3 +453,17 @@ export const DropZone = forwardRef<HTMLDivElement, DropZoneProps>(
     );
   }
 );
+
+const beforeRenderProps = (original: { props: Partial<FieldProps> | FieldProps }, externalData: any, componentBeforeRender?: (data: | { props: Partial<FieldProps> | FieldProps; }, params: { externalData: any; }) => | { props?: Partial<FieldProps> | FieldProps; }) => {
+  if (!componentBeforeRender && typeof componentBeforeRender !== "function") {
+    return original;
+  }
+
+  const transformed = {
+    props: {
+      ...componentBeforeRender(original, { externalData }).props,
+    },
+  };
+
+  return transformed;
+}
