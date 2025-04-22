@@ -54,7 +54,7 @@ const useBubbleIframeEvents = (ref: RefObject<HTMLIFrameElement | null>) => {
 };
 
 export const Preview = ({ id = "puck-preview" }: { id?: string }) => {
-  const { config, dispatch, state, setStatus, iframe, overrides } =
+  const { config, dispatch, state, setStatus, iframe, overrides, metadata } =
     useAppContext();
 
   const Page = useCallback<React.FC<PageProps>>(
@@ -87,7 +87,7 @@ export const Preview = ({ id = "puck-preview" }: { id?: string }) => {
           renderDropZone: DropZonePure,
           isEditing: true,
           dragRef: null,
-          metadata: {},
+          metadata: metadata || {},
         }}
         editMode={true} // DEPRECATED
       >
